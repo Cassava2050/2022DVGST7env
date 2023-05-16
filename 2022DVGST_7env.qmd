@@ -61,7 +61,7 @@ if (local_file == "yes") {
   folder <- here::here("data//") 
   file <- "phenotype.csv"
   skip_col <- 3 # double check the number of col skipped
-  trial_interest = "BCEAR"
+  trial_interest = "DVGST"
   year_interest <- 2022
 }
 # 1) load the data
@@ -94,27 +94,59 @@ names(sel_data_kp) = gsub("-", "_", names(sel_data_kp))
 ```{r}
 duplicated_plot <- row_col_dup(sel_data_kp)
 ```
+## fix VENEZOLANA accession_name. Convert into Venezolana
+
+```{r}
+sel_data_kp <- sel_data_kp %>% 
+  mutate(use_accession_name = 
+           ifelse(use_plot_name == "202176DVGST_repe_rep1_VENEZOLANA_163", "Venezolana", use_accession_name)) %>% 
+  mutate(use_accession_name = 
+           ifelse(use_plot_name == "202176DVGST_repe_rep2_VENEZOLANA_743", "Venezolana", use_accession_name))
+
+```
+
 
 ## Plot trial layout
 
-```{r, fig.height=8, fig.width=8}
+```{r, fig.height=12, fig.width=14}
 
-# loading checks from original data copy, paste
+trial_layout <- function(trial = sel_data_kp) {
+  trial_list <- unique(trial$use_trial_name)
+  for (i in 1:length(trial_list)) {
+    trial_i <- trial %>%
+      filter(use_trial_name %in% trial_list[i])
+    myplot <- ggplot(trial_i, aes(x = factor(use_col_number), y = factor(use_row_number), fill = factor(use_rep_number))) +
+      geom_tile(color = "black", linewidth = 0.5) + # Black border on tiles
+      geom_tile(
+        data = trial_i %>% filter(use_check_test == "check"),
+        aes(fill = use_check_test), col = "black"
+      ) +
+      scale_fill_jco() +
+      geom_text(
+        data = trial_i %>% filter(use_check_test == "check"),
+        aes(label = use_accession_name), size = 2
+      ) +
+      # geom_text(
+      #   data = trial_i %>% filter(use_check_test == "test"),
+      #   aes(label = use_plot_number), size = 3
+      # ) +
+      labs(x = "col_number", y = "row_number", fill = "rep", title = trial_list[i]) +
+      coord_fixed() + # Square tiles
+      theme_xiaofei()
 
-testigos <- read.csv("../2022BCEAR2env/data/testigos.txt", sep = "\t") %>% pull(plot_name)
-
-#filter checks from data
-
-test_df <- sel_data_kp %>% filter(use_plot_name %in% testigos) %>%
-  mutate(use_check_test = recode(use_check_test, test = "check")) 
-  
-# remove plot_names _checks from data
-
-sel_data_kp <- sel_data_kp %>% filter(!use_plot_name %in% testigos) %>% 
-  bind_rows(test_df)
-
+    print(myplot)
+    
+    ggsave(paste("images\\layout", trial_list[i], Sys.Date(), ".png", sep = "_"),
+       plot = myplot, units = "in", dpi = 300, width = 14, height = 12)
+  }
+}
 trial_layout(sel_data_kp)
+
+
+
+
 ```
+
 
 ## Check the clone name
 
@@ -124,6 +156,7 @@ cloneName_new_old <- check_clone_name(
   new_names = NA,
   add_check = NULL
 )
+
 trial_standard <- sel_data_kp %>%
   left_join(cloneName_new_old,
     by = c("use_accession_name" = "accession_name_ori")
@@ -194,18 +227,16 @@ plants_to_harvest <- plants_harvested %>%
   facet_wrap(~ use_trial_name)
 
 ggsave(paste("images\\bar", trial_interest, Sys.Date(), ".png", sep = "_"),
-       plot = plants_to_harvest, units = "in", dpi = 300, width = 6, height = 4)
-# ggsave(paste0("images\\boxplot_", trial_interest, Sys.Date(), ".png"),
-#     plot = plot_bxp, units = "in", dpi = 300, width = 12, height = 10
-#   )
+       plot = plants_to_harvest, units = "in", dpi = 300, width = 8, height = 4)
+
 ```
 
-# Fixing some issues related with DM_gravity in 202224BCEAR_cere_rep2_SM5008-33_38 plot_name
+# Fixing some issues related with plot length in 202257DVGST_momi trial
 
 ```{r eval=FALSE}
 trial_standard <-
   trial_standard %>%
-  mutate(obs_DM_gravity = ifelse(use_plot_name == "202224BCEAR_cere_rep2_SM5008-33_38", NA, obs_DM_gravity)) 
+  mutate(use_plot_length = ifelse(use_trial_name == "202257DVGST_momi", 3.5, use_plot_length))
   
 ```
 
@@ -216,8 +247,11 @@ trial_standard <-
   
 trial_standard_new <- trial_standard %>%
   mutate(obs_harvest_number_plan =
-           case_when(str_detect(use_trial_name, "202224") &  str_detect(use_trial_name , trial_interest) ~ 6,
-                     str_detect(use_trial_name, "202255") &  str_detect(use_trial_name , trial_interest) ~ 6),
+           case_when(str_detect(use_trial_name, "202151") &  str_detect(use_trial_name , trial_interest) ~ 2,
+                     str_detect(use_trial_name, "202176") &  str_detect(use_trial_name , trial_interest) ~ 4,
+                     str_detect(use_trial_name, "202177") &  str_detect(use_trial_name , trial_interest) ~ 4,
+                     str_detect(use_trial_name, "202256") &  str_detect(use_trial_name , trial_interest) ~ 4,
+                     str_detect(use_trial_name, "202257") &  str_detect(use_trial_name , trial_interest) ~ 4),
          obs_germination_perc = obs_germinated_number_plot/obs_planted_number_plot * 100,
          # 2) calculate area per plant
          area_plant = (use_plot_length*use_plot_width)/obs_planted_number_plot,
@@ -263,6 +297,23 @@ names(trial_tidy)= gsub("obs_", "", names(trial_tidy))
 trial_tidy = trial_tidy[c(meta_info, trait_list)]
 ```
 
+
+## Issues related with high values in DM_gravity
+
+```{r}
+
+trial_tidy <- trial_tidy %>% 
+  mutate(DM_gravity = 
+           ifelse(plot_name == "202257DVGST_momi_rep1_GM14164A-7_493", NA, DM_gravity)) %>%
+  mutate(DM_gravity = 
+           ifelse(plot_name == "202257DVGST_momi_rep1_GM14207B-6_15", NA, DM_gravity)) %>%
+  mutate(DM_gravity = 
+           ifelse(plot_name == "202257DVGST_momi_rep_GM14080A-3_920", NA, DM_gravity)) %>%
+  mutate(DM_gravity = 
+           ifelse(plot_name == "202257DVGST_momi_rep_GM14208A-5_1566", NA, DM_gravity)) 
+```
+
+
 # Boxplots
 
 ```{r warning=FALSE}
@@ -290,6 +341,7 @@ for (i in 1:length(trait_wanted)) {
   plot(plot_box)
 }
 ```
+
 
 ## Grouping boxplot
 
@@ -327,7 +379,7 @@ plot_bxp
 #   )
 ```
 
-
+Followin data is going to save with layout fixed
 
 ## Save the tidy data for analysis
 
