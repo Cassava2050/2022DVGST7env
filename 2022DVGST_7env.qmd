@@ -184,6 +184,13 @@ accession_rep_ct <- trial_standard %>%
 accession_rep_ct 
 ```
 
+```{r}
+trial_standard <- trial_standard %>% 
+  mutate(use_harvest_date = 
+           ifelse(use_trial_name == "202257DVGST_momi", "2023-April-17", use_harvest_date))
+```
+
+
 ## Genotypes per trial
 
 ```{r}
@@ -548,7 +555,9 @@ no_traits_for_analysis <- c("stake_plant" , "planted_number_plot",
                             "yield_ha_v2", "root_rot_perc", "CBB_3mon"
 )
 trait_ideal <- analysis_trait[!analysis_trait %in% no_traits_for_analysis]
-print("the trait ideal is:"); trait_ideal
+print("the trait ideal is:"); 
+
+trait_ideal %>% as.data.frame() %>% write.table("clipboard", sep = "\t", col.names = T, row.names = F)
 ```
 
 # Genotypic correlation (Phenotypic values)
