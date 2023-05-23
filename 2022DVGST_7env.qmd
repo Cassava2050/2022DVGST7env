@@ -572,9 +572,9 @@ correlation <- gg_cor(
 #      plot = correlation, units = "in", dpi = 300, width = 12, height = 8
 #    )
 
-ggsave(paste("images\\pheno_corr", trial_interest, Sys.Date(), ".png", sep = "_"),
-     plot = correlation, units = "in", dpi = 300, width = 12, height = 8
-   )
+# ggsave(paste("images\\pheno_corr", trial_interest, Sys.Date(), ".png", sep = "_"),
+#      plot = correlation, units = "in", dpi = 300, width = 12, height = 8
+#    )
 ```
 
 
@@ -591,6 +591,8 @@ my_dat <- my_dat[!my_dat$trial_name %in% c("202151DVGST_ciat"), ]
 
 my_dat$trial_name %>% unique()
 
+my_dat <- my_dat[my_dat$trial_name == "202257DVGST_momi", ]
+
 results <- check_design_met(
   data = my_dat, #my_dat_1
   genotype = "accession_name",
@@ -604,8 +606,8 @@ results <- check_design_met(
 
 shared <- plot(results, type = "connectivity")
 
-ggsave(paste('images\\shared_', trial_interest, Sys.Date(), ".png", sep = "_"),
-       plot = shared, units = "in", dpi = 300, width = 8, height = 6)
+# ggsave(paste('images\\shared_', trial_interest, Sys.Date(), ".png", sep = "_"),
+#        plot = shared, units = "in", dpi = 300, width = 8, height = 6)
 
 summary <- results$summ_traits 
 
@@ -618,11 +620,36 @@ p1 <- summary %>%
   theme(axis.text.x = element_text(hjust = 1 , angle = 75, size = 16),
         axis.text.y = element_text(size = 16))
 p1
-ggsave(paste("images\\missing_", trial_interest, Sys.Date(), ".png", sep = "_"),
-     plot = p1, units = "in", dpi = 300, width = 15, height = 6
-   )
+# ggsave(paste("images\\missing_", trial_interest, Sys.Date(), ".png", sep = "_"),
+#      plot = p1, units = "in", dpi = 300, width = 15, height = 6
+#    )
 master_data[["summ_traits"]] <- summary
 ```
+
+
+# Heritability of thrips1_5 trial 202257DVGST_momi
+
+There are a lot missing data, especially in rep_2. This may be the cause of no fitted any model. Several missing data. There 54% of missing data
+
+```{r}
+
+accession_remove <- c("CM4919-1_is_Veronica", "TAI8_is_TAI")
+
+reps_trips <- my_dat %>% filter(trial_name == "202257DVGST_momi", check_test == "test", 
+                  !accession_name %in% accession_remove) %>% 
+  select(check_test, accession_name, rep_number, thrips1_5) %>%
+  pivot_wider(names_from = rep_number, values_from = thrips1_5) %>% 
+  rename(rep_1 = `1`, 
+         rep_2 = `2`)
+
+reps_trips %>% select(rep_1, rep_2) %>% 
+  summarise_all(~sum(is.na(.))/sum(nrow(reps_trips))) %>% 
+  mutate(NA_rep_1_perc = rep_1 *100,
+         NA_rep_2_perc = rep_2 *100) %>% 
+  add_column(var = "thrips1_5")
+  
+```
+
 
 
 
@@ -670,7 +697,6 @@ obj <- single_trial_analysis(results = results,
 
 trials <- unique(my_dat$trial_name)
 
-
 header_sort = vector()
 i = 1
 for (i in 1:length(trials)) {
@@ -693,7 +719,6 @@ for (i in 1:length(trials)) {
   }
  master_data[[paste0("BLUP_BLUE_", trials[i])]] <- blue_blup
 }
-
 ```
 ## Single heritability
 
