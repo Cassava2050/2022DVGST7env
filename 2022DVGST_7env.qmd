@@ -643,11 +643,13 @@ reps_trips <- my_dat %>% filter(trial_name == "202257DVGST_momi", check_test == 
          rep_2 = `2`)
 
 reps_trips %>% select(rep_1, rep_2) %>% 
-  summarise_all(~sum(is.na(.))/sum(nrow(reps_trips))) %>% 
+  summarise_all(~sum(is.na(.))/sum(nrow(reps_trips))) %>% # empty rows
   mutate(NA_rep_1_perc = rep_1 *100,
          NA_rep_2_perc = rep_2 *100) %>% 
   add_column(var = "thrips1_5")
-  
+
+gg_miss_var(reps_trips %>% select(rep_1, rep_2), show_pct = TRUE) +
+  labs(x = "reps", title = "thrips1_5 missing values (202257DVGST_momi)")
 ```
 
 
@@ -719,6 +721,17 @@ for (i in 1:length(trials)) {
   }
  master_data[[paste0("BLUP_BLUE_", trials[i])]] <- blue_blup
 }
+
+master_data$BLUP_BLUE_202257DVGST_momi %>% 
+  select(genotype, BLUEs_branch_number, BLUPs_branch_number) %>% 
+  ggplot(aes(x = BLUEs_branch_number, y = BLUPs_branch_number)) +
+  geom_point() 
+
+model_branch_number <- lm(BLUEs_branch_number ~ BLUPs_branch_number, data = master_data$BLUP_BLUE_202257DVGST_momi )
+
+summary(model_branch_number)
+model_branch_number$coefficients[1]
+model_branch_number$coefficients[2]
 ```
 ## Single heritability
 
