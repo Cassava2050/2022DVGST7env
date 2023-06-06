@@ -59,7 +59,7 @@ local_file <- "yes" # "no"
 
 if (local_file == "yes") {
   folder <- here::here("data//") 
-  file <- "phenotype.csv"
+  file <- "phenotype2.csv"
   skip_col <- 3 # double check the number of col skipped
   trial_interest = "DVGST"
   year_interest <- 2022
@@ -94,6 +94,7 @@ names(sel_data_kp) = gsub("-", "_", names(sel_data_kp))
 ```{r}
 duplicated_plot <- row_col_dup(sel_data_kp)
 ```
+
 ## fix VENEZOLANA accession_name. Convert into Venezolana
 
 ```{r}
@@ -136,8 +137,8 @@ trial_layout <- function(trial = sel_data_kp) {
 
     print(myplot)
     
-    ggsave(paste("images\\layout", trial_list[i], Sys.Date(), ".png", sep = "_"),
-       plot = myplot, units = "in", dpi = 300, width = 14, height = 12)
+    # ggsave(paste("images\\layout", trial_list[i], Sys.Date(), ".png", sep = "_"),
+    #    plot = myplot, units = "in", dpi = 300, width = 14, height = 12)
   }
 }
 trial_layout(sel_data_kp)
@@ -184,13 +185,6 @@ accession_rep_ct <- trial_standard %>%
 accession_rep_ct 
 ```
 
-```{r}
-trial_standard <- trial_standard %>% 
-  mutate(use_harvest_date = 
-           ifelse(use_trial_name == "202257DVGST_momi", "2023-April-17", use_harvest_date))
-```
-
-
 ## Genotypes per trial
 
 ```{r}
@@ -233,18 +227,9 @@ plants_to_harvest <- plants_harvested %>%
   labs(x = "Harvest_plant_number", y = "Freq", fill = "Harvest_plant_number") +
   facet_wrap(~ use_trial_name)
 
-ggsave(paste("images\\bar", trial_interest, Sys.Date(), ".png", sep = "_"),
-       plot = plants_to_harvest, units = "in", dpi = 300, width = 8, height = 4)
+# ggsave(paste("images\\bar", trial_interest, Sys.Date(), ".png", sep = "_"),
+#        plot = plants_to_harvest, units = "in", dpi = 300, width = 8, height = 4)
 
-```
-
-# Fixing some issues related with plot length in 202257DVGST_momi trial
-
-```{r eval=FALSE}
-trial_standard <-
-  trial_standard %>%
-  mutate(use_plot_length = ifelse(use_trial_name == "202257DVGST_momi", 3.5, use_plot_length))
-  
 ```
 
 
@@ -311,13 +296,10 @@ trial_tidy = trial_tidy[c(meta_info, trait_list)]
 
 trial_tidy <- trial_tidy %>% 
   mutate(DM_gravity = 
-           ifelse(plot_name == "202257DVGST_momi_rep1_GM14164A-7_493", NA, DM_gravity)) %>%
+           ifelse(plot_name == "202257DVGST_momi_rep1_GM14164A-7_493", NA, DM_gravity)) %>% #
   mutate(DM_gravity = 
-           ifelse(plot_name == "202257DVGST_momi_rep1_GM14207B-6_15", NA, DM_gravity)) %>%
-  mutate(DM_gravity = 
-           ifelse(plot_name == "202257DVGST_momi_rep_GM14080A-3_920", NA, DM_gravity)) %>%
-  mutate(DM_gravity = 
-           ifelse(plot_name == "202257DVGST_momi_rep_GM14208A-5_1566", NA, DM_gravity)) 
+           ifelse(plot_name == "202257DVGST_momi_rep_GM14208A-5_1566", NA, DM_gravity))
+
 ```
 
 
@@ -386,7 +368,26 @@ plot_bxp
 #   )
 ```
 
-Followin data is going to save with layout fixed.
+## save Xiaofei thrips1_5 from 202256_momi
+
+```{r}
+
+thrips <- read.delim("clipboard", header = T, check.names = F) %>% 
+  select(plot_name, accession_name, plot_number, contains("thrips"))
+
+thrips <- thrips %>% rename(thrips1_5 = `thrips severity : visual 1-5|CO_334:0002084`)
+thrips$plot_number <- as.numeric(thrips$plot_number)
+
+trial_tidy$plot_number <- as.numeric(trial_tidy$plot_number)
+
+
+trial_tidy <- trial_tidy %>% filter(!trial_name == "202257DVGST_momi") %>% 
+  bind_rows(trial_tidy %>% filter(trial_name == "202257DVGST_momi") %>% 
+  select(-c(plot_name, thrips1_5)) %>% 
+  left_join(thrips %>% select(plot_name, plot_number, thrips1_5), 
+            by = c("plot_number" = "plot_number"))) 
+```
+
 
 ## Save the tidy data for analysis
 
@@ -499,7 +500,7 @@ print("All the meta information:")
 print(meta_col)
 ```
 
-```{r}
+```{r eval=FALSE}
 group = "group1" #----- Choose one
 
 group = "group2"
@@ -577,6 +578,70 @@ correlation <- gg_cor(
 #    )
 ```
 
+# data fixing 
+
+```{r eval=FALSE}
+accession_wrong <- trial_rm_sd %>% 
+  filter(trial_name == "202257DVGST_momi", col_number %in% c(1:18), row_number %in% c(1:14)) %>% 
+  select(accession_name) %>% pull()
+
+accession_remove <- c("CM4919-1_is_Veronica", "TAI8_is_TAI")
+
+reps_trips <- trial_rm_sd %>% filter(trial_name == "202257DVGST_momi", check_test == "test", 
+                  !accession_name %in% accession_remove, accession_name %in% accession_wrong) %>% 
+  select(check_test, accession_name, rep_number, thrips1_5) %>%
+  pivot_wider(names_from = rep_number, values_from = thrips1_5) %>% 
+  #arrange(col_number, row_number) %>% 
+  rename(rep_1 = `1`, 
+         rep_2 = `2`)
+
+issue_genos <- reps_trips %>% pull(accession_name)
+
+library(DataEditR)
+
+#reps_trips_edit <- 
+#data_edit(reps_trips) # pivot_longer results and put the thrips title, 
+# then pull the genos and filter from original data and join with rep_numer and accession_name
+
+
+reps_trips_edit <- read_csv("data/20230531-data.csv") # load fixed data
+
+reps_trips_edit_long <-  # pivot longer fixed data
+  reps_trips_edit %>% rename(`1` = rep_1, `2` = rep_2) %>% 
+  pivot_longer(cols = c("1", "2"), names_to = "rep_number", values_to = "thrips1_5") 
+
+reps_trips_edit_long %>% unite("accession_key", accession_name:rep_number, remove = T)
+
+data_fixed <-
+  trial_rm_sd %>% 
+  filter(trial_name == "202257DVGST_momi", accession_name %in% issue_genos) %>% 
+  select(plot_name, accession_name, rep_number) %>% 
+  unite("accession_key", accession_name:rep_number, remove = F) %>% # mutate key column
+  left_join(reps_trips_edit_long %>% 
+              unite("accession_key", accession_name:rep_number, remove = T) %>% 
+  select(-check_test), by = c("accession_key" = "accession_key")) %>% 
+  select(plot_name, thrips1_5)
+  
+# replace above values into original data
+
+col_row_data_fixed <- trial_rm_sd %>% filter(trial_name == "202257DVGST_momi", 
+                  accession_name %in% issue_genos) %>% 
+  select(-thrips1_5) %>% 
+  left_join(data_fixed, by = "plot_name")
+
+ data_momi_fixed <- trial_rm_sd %>% 
+  filter(trial_name == "202257DVGST_momi", 
+         !plot_name %in% col_row_data_fixed$plot_name) %>% 
+   bind_rows(col_row_data_fixed)
+```
+
+
+Binding fixed data to tidy_data
+
+```{r}
+trial_rm_sd <- trial_rm_sd %>% filter(!trial_name == "202257DVGST_momi") %>% 
+  bind_rows(data_momi_fixed)
+```
 
 ## Check design experimental
 
@@ -586,12 +651,19 @@ correlation <- gg_cor(
 my_dat <- trial_rm_sd %>% 
   add_column(block = NA) %>% mutate(block = as.factor(block))
 
-
 my_dat <- my_dat[!my_dat$trial_name %in% c("202151DVGST_ciat"), ]
 
-my_dat$trial_name %>% unique()
+ 
+#cohort <- "first"
+cohort <- "second"
 
-my_dat <- my_dat[my_dat$trial_name == "202257DVGST_momi", ]
+if(cohort == "first") { 
+my_dat <- my_dat %>% filter(trial_name %in% c("202177DVGST_momi", "202176DVGST_repe"))
+}else{
+my_dat <- my_dat %>% filter(trial_name %in% c("202256DVGST_stom", "202257DVGST_momi"))
+}
+
+my_dat$trial_name %>% unique()
 
 results <- check_design_met(
   data = my_dat, #my_dat_1
@@ -631,7 +703,8 @@ master_data[["summ_traits"]] <- summary
 
 There are a lot missing data, especially in rep_2. This may be the cause of no fitted any model. Several missing data. There 54% of missing data
 
-```{r}
+```{r eval = FALSE}
+library(naniar)
 
 accession_remove <- c("CM4919-1_is_Veronica", "TAI8_is_TAI")
 
@@ -639,6 +712,7 @@ reps_trips <- my_dat %>% filter(trial_name == "202257DVGST_momi", check_test == 
                   !accession_name %in% accession_remove) %>% 
   select(check_test, accession_name, rep_number, thrips1_5) %>%
   pivot_wider(names_from = rep_number, values_from = thrips1_5) %>% 
+  #arrange(col_number, row_number) %>% 
   rename(rep_1 = `1`, 
          rep_2 = `2`)
 
@@ -722,16 +796,43 @@ for (i in 1:length(trials)) {
  master_data[[paste0("BLUP_BLUE_", trials[i])]] <- blue_blup
 }
 
-master_data$BLUP_BLUE_202257DVGST_momi %>% 
-  select(genotype, BLUEs_branch_number, BLUPs_branch_number) %>% 
-  ggplot(aes(x = BLUEs_branch_number, y = BLUPs_branch_number)) +
-  geom_point() 
 
-model_branch_number <- lm(BLUEs_branch_number ~ BLUPs_branch_number, data = master_data$BLUP_BLUE_202257DVGST_momi )
+```
 
-summary(model_branch_number)
-model_branch_number$coefficients[1]
-model_branch_number$coefficients[2]
+# single THRIPS 
+
+```{r}
+library(SpATS)
+
+my_dat57 <- my_dat %>% filter(trial_name == "202257DVGST_momi") %>% 
+  mutate(R = as.factor(row_number),
+         C = as.factor(col_number))
+         
+
+ncols = length(unique(my_dat57$C))
+nrows = length(unique(my_dat57$R))
+
+
+mo_spatial <- SpATS(
+    response = "thrips1_5",
+    genotype = "accession_name",
+    genotype.as.random = TRUE,     #TRUE ---select one 
+    fixed = NULL,
+    spatial = ~ PSANOVA(col_number,
+      row_number,
+      nseg = c(ncols, nrows),
+      degree = c(3, 3),
+      nest.div = 2
+    ),
+    random = ~ R + C,
+    data = my_dat57,
+    control = list(tolerance = 1e-03, monitoring = 1)
+  )
+
+plot(mo_spatial)
+var.m0 <- variogram(mo_spatial)
+plot(var.m0)
+getHeritability(mo_spatial)
 ```
 ## Single heritability
 
@@ -765,9 +866,19 @@ single_h2 %>%
 ## Multi environmetal analysis
 
 ```{r}
+traits_to_remove <- single_h2 %>% 
+  pivot_longer(!trial, names_to = "traits", values_to = "heritability") %>% 
+  filter(heritability < 0.1 | is.na(heritability)) %>% distinct(traits) %>% pull(traits)
+
+# traits removed because of low heritability
+single_h2 %>% 
+  pivot_longer(!trial, names_to = "traits", values_to = "heritability") %>% 
+  filter(heritability < 0.1 | is.na(heritability)) %>% 
+  write.table("clipboard", sep = "\t", col.names = T, row.names = F)
+
 met_results <- met_analysis(obj, 
-                            filter_traits = trait_ideal[!trait_ideal %in% c("lodging1_3_6mon")],
-                            h2_filter = 0.1,
+                            filter_traits = trait_ideal[!trait_ideal %in% c(traits_to_remove)],
+                            h2_filter = 0.09,
                             progress = TRUE)
 
 
@@ -796,8 +907,6 @@ master_data[[paste0("BLUPs_", "gxe")]] <- BLUPs_table
 ## Genotypic Correlation: Locations
 
 ```{r dpi=300}
-
-trait_ideal
 
 #Yield
 corrplot(met_results$VCOV$yield_ha$CORR, method="color",  
@@ -883,6 +992,7 @@ master_data[[paste0("BLUP_BLUE_", var)]] <- blue_blup
 ## Palmira trial
 
 ```{r}
+if (cohort == "first"){ 
 PALMIRA <- trial_rm_sd %>% filter(trial_name %in% c("202151DVGST_ciat")) %>% 
   select(accession_name, any_of(trait_ideal))
 
@@ -908,7 +1018,8 @@ one_rep_palmira <- PALMIRA %>% filter(!accession_name %in% testigos_palmira) %>%
 colnames(one_rep_palmira) <- c("accession_name", paste("BLUEs", colnames(one_rep_palmira[-1]), sep = "_"))
 
 # add palmira BLUEs_value to master file
-master_data$BLUE_202151DVGST_ciat <- one_rep_palmira %>%  mutate(across(where(is.numeric), round, 2))
+master_data$BLUE_202151DVGST_ciat <- 
+  one_rep_palmira %>%  mutate(across(where(is.numeric), round, 2))
 
 # put the Palmira data into each BLUP_BLUE_trait sheet 
 # root_type
@@ -946,6 +1057,7 @@ master_data$BLUP_BLUE_DM_gravity <-
               select(accession_name, BLUEs_DM_nirs) %>% 
               rename(`202151DVGST_ciat` = BLUEs_DM_nirs), by = c("genotype" = "accession_name")) %>% 
   select(-c(DM_gravity), everything(), DM_gravity)
+}
 ```
 
 ## Stability analysis
@@ -957,8 +1069,7 @@ for (var in variables) {
 stab <- met_results$stability %>% 
   filter(trait == var) %>% 
   arrange(superiority) %>% 
-        pivot_wider(names_from = "trait", values_from = c('predicted.value')) %>% 
-  filter(genotype %in% shared_genos)
+        pivot_wider(names_from = "trait", values_from = c('predicted.value')) 
 
 # Change colname
 colnames(stab)[5] <- paste('BLUPs', colnames(stab)[5], sep = '_') 
@@ -976,8 +1087,6 @@ stab_values <- master_data[ind] %>%
   reduce(inner_join, by = "genotype") %>% 
   select(!starts_with("BLUPs_")) %>% 
   mutate(across(where(is.numeric), round, 2))
-
-
 ```
 
 ## BLUE and BLUP data together
@@ -1009,6 +1118,7 @@ BLUEs_BLUPs <-
   BLUEs_BLUPs <- BLUEs_BLUPs[, colSums(is.na(BLUEs_BLUPs)) < nrow(BLUEs_BLUPs)]
 
 
+if(cohort == "first") { 
 # put BLUES from PALMIRA data set together with the rest.
   
   blue_MET_palmira <- master_data$BLUE_202151DVGST_ciat
@@ -1021,7 +1131,7 @@ BLUEs_BLUPs <-
   
 BLUEs_BLUPs <- 
   BLUEs_BLUPs %>% left_join(blue_MET_palmira, by = c("genotype" = "accession_name"))
-
+}
 
 # put all together stab_values with blues_blups
 BLUEs_BLUPs <- 
@@ -1079,17 +1189,17 @@ ggsave(paste("images\\geno_corr", trial_interest, Sys.Date(), ".png", sep = "_")
 
 ```{r}
 folder_output <- here::here("output//")
-meta_file_name <- paste0(folder_output, paste("2022", trial_interest, "master_results", Sys.Date(), ".xlsx", sep = "_"))
+meta_file_name <- paste0(folder_output, paste("2022", trial_interest, cohort, "cohort", "master_results", Sys.Date(), ".xlsx", sep = "_"))
 
 write.xlsx(master_data, file = meta_file_name)
 
 # It is neccessary change some elements names from master_file
-grep("^stability_root_number_commercial", names(master_data))
+grep("^stability_germinated_number_plot", names(master_data))
 
-names(master_data)[16] <- "BLUP_BLUE_germ_number_plot"
-names(master_data)[25] <- "BLUP_BLUE_root_commercial"
-names(master_data)[42] <- "stability_germ_number_plot"
-names(master_data)[51] <- "stability_root_commercial"
+names(master_data)[10] <- "BLUP_BLUE_germ_number_plot"
+names(master_data)[19] <- "BLUP_BLUE_root_commercial"
+names(master_data)[27] <- "stability_germ_number_plot"
+names(master_data)[41] <- "stability_root_commercial"
 
 write.xlsx(master_data, file = meta_file_name)
 
@@ -1103,10 +1213,10 @@ sel_file <- list_file[str_detect(list_file, "_master_results_") &
   str_detect(list_file, trial_interest)]
 sel_file
 
-sel_file[1]
+sel_file[3]
 blupDF_kp <- read_excel(
   paste(folder_output,
-    sel_file[1],
+    sel_file[3],
     sep = ""
   ),
   sheet = paste0("BLUPs_", "gxe")
@@ -1115,7 +1225,7 @@ blupDF_kp <- read_excel(
 
 ## Filter shared genotypes from 2022
 
-```{r}
+```{r eval=FALSE}
 blupDF_kp <- blupDF_kp %>% 
   filter(accession_name %in% shared_genos)
 ```
@@ -1125,7 +1235,7 @@ blupDF_kp <- blupDF_kp %>%
 ```{r}
 colnames(blupDF_kp)
 
-index_traits <- c("DM_gravity", "plant_type", "yield_ha")
+index_traits <- c("DM_gravity", "height_1st_branch", "yield_ha")
 
 index_dat <- blupDF_kp %>%
   select("accession_name", all_of(index_traits)) %>% 
@@ -1197,7 +1307,7 @@ selIndex <- function (Y, b, scale = FALSE)
 
 ```{r}
 
-res.pca <- pca_index(data = index_dat, id = "accession_name", b = c(10, -5, 10), percentage = 0.20)
+res.pca <- pca_index(data = index_dat, id = "accession_name", b = c(10, 10, 10), percentage = 0.20)
 res.pca_final <- res.pca$final
 res.pca_final
 # ggsave(paste("images/selection",  trial_interest, Sys.Date(), ".png"), plot = res.pca_final, units = "in", dpi = 300, width = 10, height = 10)
@@ -1225,7 +1335,7 @@ master_data[["BLUEs_BLUPs_MET"]] = BLUEs_BLUPs
 
 ```{r}
 folder_output <- here::here("output//")
-meta_file_name <- paste0(folder_output, paste("2022", trial_interest, "master_results", Sys.Date(), ".xlsx", sep = "_"))
+
 write.xlsx(master_data, file = meta_file_name)
 ```
 
