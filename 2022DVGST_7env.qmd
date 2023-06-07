@@ -59,7 +59,7 @@ local_file <- "yes" # "no"
 
 if (local_file == "yes") {
   folder <- here::here("data//") 
-  file <- "phenotype2.csv"
+  file <- "phenotype3.csv"
   skip_col <- 3 # double check the number of col skipped
   trial_interest = "DVGST"
   year_interest <- 2022
@@ -298,7 +298,7 @@ trial_tidy <- trial_tidy %>%
   mutate(DM_gravity = 
            ifelse(plot_name == "202257DVGST_momi_rep1_GM14164A-7_493", NA, DM_gravity)) %>% #
   mutate(DM_gravity = 
-           ifelse(plot_name == "202257DVGST_momi_rep_GM14208A-5_1566", NA, DM_gravity))
+           ifelse(plot_name == "202257DVGST_momi_rep2_GM14208A-5_1566", NA, DM_gravity))
 
 ```
 
@@ -372,20 +372,20 @@ plot_bxp
 
 ```{r}
 
-thrips <- read.delim("clipboard", header = T, check.names = F) %>% 
-  select(plot_name, accession_name, plot_number, contains("thrips"))
-
-thrips <- thrips %>% rename(thrips1_5 = `thrips severity : visual 1-5|CO_334:0002084`)
-thrips$plot_number <- as.numeric(thrips$plot_number)
-
-trial_tidy$plot_number <- as.numeric(trial_tidy$plot_number)
-
-
-trial_tidy <- trial_tidy %>% filter(!trial_name == "202257DVGST_momi") %>% 
-  bind_rows(trial_tidy %>% filter(trial_name == "202257DVGST_momi") %>% 
-  select(-c(plot_name, thrips1_5)) %>% 
-  left_join(thrips %>% select(plot_name, plot_number, thrips1_5), 
-            by = c("plot_number" = "plot_number"))) 
+# thrips <- read.delim("clipboard", header = T, check.names = F) %>% 
+#   select(plot_name, accession_name, plot_number, contains("thrips"))
+# 
+# thrips <- thrips %>% rename(thrips1_5 = `thrips severity : visual 1-5|CO_334:0002084`)
+# thrips$plot_number <- as.numeric(thrips$plot_number)
+# 
+# trial_tidy$plot_number <- as.numeric(trial_tidy$plot_number)
+# 
+# 
+# trial_tidy <- trial_tidy %>% filter(!trial_name == "202257DVGST_momi") %>% 
+#   bind_rows(trial_tidy %>% filter(trial_name == "202257DVGST_momi") %>% 
+#   select(-c(plot_name, thrips1_5)) %>% 
+#   left_join(thrips %>% select(plot_name, plot_number, thrips1_5), 
+#             by = c("plot_number" = "plot_number"))) 
 ```
 
 
@@ -441,7 +441,7 @@ sel_file = list_file[str_detect(list_file, "_tidy_data4analysis_") &
                        str_detect(list_file,
                                   paste(year_interest, trial_interest, sep=""))]
 # the data we will use
-sel_file_use = sel_file[1]
+sel_file_use = sel_file[2]
 
 sel_file_use
 trial1_tidy = read.csv(here::here("output", sel_file_use), header=TRUE,
@@ -452,7 +452,6 @@ if(trial_set_number == 1){
   trial_tidy_all = trial1_tidy
 }
 ```
-
 ## Obtain all the trait information using a cloud file (gitHub) -------
 
 ```{r}
@@ -500,44 +499,6 @@ print("All the meta information:")
 print(meta_col)
 ```
 
-```{r eval=FALSE}
-group = "group1" #----- Choose one
-
-group = "group2"
-```
-
-
-# First group
-
-First group is compound by "202151DVGST_ciat", "202176DVGST_repe", "202177DVGST_repe"
-
-
-```{r eval=FALSE}
-if (group == "group1") {
-  trial_tidy_all <- trial_tidy_all %>% filter(trial_name %in% c("202151DVGST_ciat", "202176DVGST_repe", "202177DVGST_momi"))
-} else {
-  print("We are working on group 2")
-}
-
-trial_tidy_all$trial_name %>% unique()
-
-```
-
-# Second group
-
-Second group is compound by "202256DVGST_stom", "202257DVGST_stom"
-
-```{r eval=FALSE}
-if(group == "group2"){ 
-trial_tidy_all <- trial_tidy_all %>% filter(trial_name %in% c("202256DVGST_stom", "202257DVGST_momi"))
-}else {
-  print('We are working on group 1')
-}
-
-
-trial_tidy_all$trial_name %>% unique()
-```
-
 ## Check the SD of each trait
 
 ```{r}
@@ -560,6 +521,23 @@ print("the trait ideal is:");
 
 trait_ideal %>% as.data.frame() %>% write.table("clipboard", sep = "\t", col.names = T, row.names = F)
 ```
+# Missing data analysis
+ 
+```{r}
+missing_data <- trial_tidy_all %>% 
+  filter(str_detect(trial_name, "2022"), 
+         accession_name %in% c("GM14207B-7", "GM13995A-5", "GM14069B-7")) %>% 
+  select(trial_name, accession_name, rep_number, all_of(trait_ideal))
+
+
+missing_data %>% select(-c(WAB_20min_12mon, WAB_30min_12mon, betacarotenoid_nirs)) %>% 
+   pivot_longer(cols = trait_ideal[-c(1, 2, 4)], names_to = "traits", values_to = "count")
+
+ gg_miss_var(
+  missing_data %>% select(-c(WAB_20min_12mon, WAB_30min_12mon, betacarotenoid_nirs)), 
+  show_pct = TRUE,
+   facet = accession_name)
+```
 
 # Genotypic correlation (Phenotypic values)
 
@@ -578,70 +556,6 @@ correlation <- gg_cor(
 #    )
 ```
 
-# data fixing 
-
-```{r eval=FALSE}
-accession_wrong <- trial_rm_sd %>% 
-  filter(trial_name == "202257DVGST_momi", col_number %in% c(1:18), row_number %in% c(1:14)) %>% 
-  select(accession_name) %>% pull()
-
-accession_remove <- c("CM4919-1_is_Veronica", "TAI8_is_TAI")
-
-reps_trips <- trial_rm_sd %>% filter(trial_name == "202257DVGST_momi", check_test == "test", 
-                  !accession_name %in% accession_remove, accession_name %in% accession_wrong) %>% 
-  select(check_test, accession_name, rep_number, thrips1_5) %>%
-  pivot_wider(names_from = rep_number, values_from = thrips1_5) %>% 
-  #arrange(col_number, row_number) %>% 
-  rename(rep_1 = `1`, 
-         rep_2 = `2`)
-
-issue_genos <- reps_trips %>% pull(accession_name)
-
-library(DataEditR)
-
-#reps_trips_edit <- 
-#data_edit(reps_trips) # pivot_longer results and put the thrips title, 
-# then pull the genos and filter from original data and join with rep_numer and accession_name
-
-
-reps_trips_edit <- read_csv("data/20230531-data.csv") # load fixed data
-
-reps_trips_edit_long <-  # pivot longer fixed data
-  reps_trips_edit %>% rename(`1` = rep_1, `2` = rep_2) %>% 
-  pivot_longer(cols = c("1", "2"), names_to = "rep_number", values_to = "thrips1_5") 
-
-reps_trips_edit_long %>% unite("accession_key", accession_name:rep_number, remove = T)
-
-data_fixed <-
-  trial_rm_sd %>% 
-  filter(trial_name == "202257DVGST_momi", accession_name %in% issue_genos) %>% 
-  select(plot_name, accession_name, rep_number) %>% 
-  unite("accession_key", accession_name:rep_number, remove = F) %>% # mutate key column
-  left_join(reps_trips_edit_long %>% 
-              unite("accession_key", accession_name:rep_number, remove = T) %>% 
-  select(-check_test), by = c("accession_key" = "accession_key")) %>% 
-  select(plot_name, thrips1_5)
-  
-# replace above values into original data
-
-col_row_data_fixed <- trial_rm_sd %>% filter(trial_name == "202257DVGST_momi", 
-                  accession_name %in% issue_genos) %>% 
-  select(-thrips1_5) %>% 
-  left_join(data_fixed, by = "plot_name")
-
- data_momi_fixed <- trial_rm_sd %>% 
-  filter(trial_name == "202257DVGST_momi", 
-         !plot_name %in% col_row_data_fixed$plot_name) %>% 
-   bind_rows(col_row_data_fixed)
-```
-
-
-Binding fixed data to tidy_data
-
-```{r}
-trial_rm_sd <- trial_rm_sd %>% filter(!trial_name == "202257DVGST_momi") %>% 
-  bind_rows(data_momi_fixed)
-```
 
 ## Check design experimental
 
@@ -698,69 +612,6 @@ p1
 master_data[["summ_traits"]] <- summary
 ```
 
-
-# Heritability of thrips1_5 trial 202257DVGST_momi
-
-There are a lot missing data, especially in rep_2. This may be the cause of no fitted any model. Several missing data. There 54% of missing data
-
-```{r eval = FALSE}
-library(naniar)
-
-accession_remove <- c("CM4919-1_is_Veronica", "TAI8_is_TAI")
-
-reps_trips <- my_dat %>% filter(trial_name == "202257DVGST_momi", check_test == "test", 
-                  !accession_name %in% accession_remove) %>% 
-  select(check_test, accession_name, rep_number, thrips1_5) %>%
-  pivot_wider(names_from = rep_number, values_from = thrips1_5) %>% 
-  #arrange(col_number, row_number) %>% 
-  rename(rep_1 = `1`, 
-         rep_2 = `2`)
-
-reps_trips %>% select(rep_1, rep_2) %>% 
-  summarise_all(~sum(is.na(.))/sum(nrow(reps_trips))) %>% # empty rows
-  mutate(NA_rep_1_perc = rep_1 *100,
-         NA_rep_2_perc = rep_2 *100) %>% 
-  add_column(var = "thrips1_5")
-
-gg_miss_var(reps_trips %>% select(rep_1, rep_2), show_pct = TRUE) +
-  labs(x = "reps", title = "thrips1_5 missing values (202257DVGST_momi)")
-```
-
-
-
-
-```{r}
-if(group == "group1") { 
-shared_genos_2021 <- check_connectivity(
-    data = my_dat,
-    genotype = "accession_name",
-    trial = "trial_name",
-    response = "germination_perc",
-    all = TRUE,
-    return_matrix = FALSE
-  )
-shared_genos_2021 <- shared_genos_2021 %>% distinct(accession_name) %>% 
-  pull(accession_name)
-
-} else {
-  
-  shared_genos_2022 <- check_connectivity(
-    data = my_dat,
-    genotype = "accession_name",
-    trial = "trial_name",
-    response = "germination_perc",
-    all = TRUE,
-    return_matrix = FALSE
-  )
-shared_genos_2022 <- shared_genos_2022 %>% distinct(accession_name) %>% 
-  pull(accession_name)
-}
-
-# genotypes from 2021 and 2022 of both groups = 242 genotypes
-shared_genos <- union(shared_genos_2021, shared_genos_2022)
-
-length(shared_genos)
-```
 
 ## Single trial analysis
 
@@ -834,6 +685,7 @@ var.m0 <- variogram(mo_spatial)
 plot(var.m0)
 getHeritability(mo_spatial)
 ```
+
 ## Single heritability
 
 ```{r}
@@ -853,8 +705,8 @@ heri <- obj$resum_fitted_model[ ,1:3] %>%
   theme(axis.text.x = element_text(vjust = 1, angle = 65))
 heri  
 
- ggsave(paste0("images\\heri_single", trial_interest, Sys.Date(), ".png"),
-       plot = heri, units = "in", dpi = 300, width = 12, height = 6)
+ # ggsave(paste0("images\\heri_single", trial_interest, Sys.Date(), ".png"),
+ #       plot = heri, units = "in", dpi = 300, width = 12, height = 6)
   
 master_data[["single_h2"]] <- single_h2
 
@@ -926,7 +778,7 @@ corrplot(met_results$VCOV$DM_gravity$CORR, method="color",
          diag=T 
          )
 # plant_type
-corrplot(met_results$VCOV$plant_type$CORR, method="color",  
+corrplot(met_results$VCOV$height_1st_branch$CORR, method="color",  
          type="lower", order="hclust", 
          addCoef.col = "black", # Add coefficient of correlation
          tl.col="black",
@@ -945,7 +797,7 @@ corrplot(met_results$VCOV$germination_perc$CORR, method="color",
 
 # height_1st_branch
 
-corrplot(met_results$VCOV$height_1st_branch$CORR, method="color",  
+corrplot(met_results$VCOV$thrips1_5$CORR, method="color",  
          type="lower", order="hclust", 
          addCoef.col = "black", # Add coefficient of correlation
          tl.col="black",
@@ -1153,11 +1005,12 @@ BLUEs_BLUPs <- BLUEs_BLUPs %>%
 BLUEs_BLUPs <- BLUEs_BLUPs %>% 
   relocate(colnames(BLUEs_BLUPs)[str_detect(colnames(BLUEs_BLUPs), "DM_gravity")], .after = genotype)
 
-# 
+if(cohort == "first") {
 BLUEs_BLUPs <- BLUEs_BLUPs %>% left_join(blue_MET_palmira %>% 
                             select(accession_name, BLUEs_DM_nirs_202151DVGST_ciat),
                           by = c("genotype" = "accession_name")) %>% 
   relocate(BLUEs_DM_nirs_202151DVGST_ciat, .after = genotype)
+}
 
 
 
@@ -1194,9 +1047,12 @@ meta_file_name <- paste0(folder_output, paste("2022", trial_interest, cohort, "c
 write.xlsx(master_data, file = meta_file_name)
 
 # It is neccessary change some elements names from master_file
-grep("^stability_germinated_number_plot", names(master_data))
+grep("^BLUP_BLUE_germinated_number_plot", names(master_data))
+names(master_data)[8] <- "BLUP_BLUE_germ_number_plot"
 
-names(master_data)[10] <- "BLUP_BLUE_germ_number_plot"
+grep("^stability_germinated_number_plot", names(master_data))
+names(master_data)[26] <- "stability_germ_number_plot"
+
 names(master_data)[19] <- "BLUP_BLUE_root_commercial"
 names(master_data)[27] <- "stability_germ_number_plot"
 names(master_data)[41] <- "stability_root_commercial"
@@ -1210,24 +1066,18 @@ write.xlsx(master_data, file = meta_file_name)
 ```{r}
 list_file <- list.files(folder_output)
 sel_file <- list_file[str_detect(list_file, "_master_results_") &
-  str_detect(list_file, trial_interest)]
+  str_detect(list_file, trial_interest) &
+  str_detect(list_file, cohort)]
 sel_file
 
-sel_file[3]
+sel_file[2]
 blupDF_kp <- read_excel(
   paste(folder_output,
-    sel_file[3],
+    sel_file[2],
     sep = ""
   ),
   sheet = paste0("BLUPs_", "gxe")
 )
-```
-
-## Filter shared genotypes from 2022
-
-```{r eval=FALSE}
-blupDF_kp <- blupDF_kp %>% 
-  filter(accession_name %in% shared_genos)
 ```
 
 ## Selection index
