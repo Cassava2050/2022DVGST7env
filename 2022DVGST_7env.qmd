@@ -9,28 +9,27 @@ editor: visual
 
 # Introduction
 
-This document is showing the data analysis of 7 DVGST training population trials in Colombia. 
+This document is showing the data analysis of 7 DVGST training population trials in Colombia.
 
 Year 2022
 
-- 202256DVGST_stom
-- 202257DVGST_momi
-- 202258DVGST_ciat (Hasn't yet been harvested)
-- 202271DVGST_ciat (Hasn't yet been harvested)
+-   202256DVGST_stom
+-   202257DVGST_momi
+-   202258DVGST_ciat (Hasn't yet been harvested)
+-   202271DVGST_ciat 
 
 Year 2021
 
-- 202151DVGST_ciat
-- 202176DVGST_repe
-- 202177DVGST_momi
+-   202151DVGST_ciat
+-   202176DVGST_repe
+-   202177DVGST_momi
 
 The trials were managed by CIAT and the locations were:
-
 
 -   Momil, Cordoba - Colombia
 -   Santo Tomas, Atlantico - Colombia
 -   Repelon, Atlantico - Colombia
--   CIAT, Valle del Cauca - Colombia  
+-   CIAT, Valle del Cauca - Colombia
 
 ## Load the libraries
 
@@ -65,8 +64,31 @@ if (local_file == "yes") {
   year_interest <- 2022
 }
 # 1) load the data
-sel_data <- read_cassavabase(phenotypeFile = paste0(folder, file))
+sel_data1 <- read_cassavabase(phenotypeFile = paste0(folder, file))
 ```
+
+## Load the files to check
+
+```{r}
+local_file <- "yes" # "no"
+
+if (local_file == "yes") {
+  folder <- here::here("data//") 
+  file <- "phenotype71.csv"
+  skip_col <- 3 # double check the number of col skipped
+  trial_interest = "DVGST"
+  year_interest <- 2022
+}
+# 1) load the data
+sel_data2 <- read_cassavabase(phenotypeFile = paste0(folder, file))
+```
+
+## Bind data sets
+
+```{r}
+sel_data <- sel_data1 %>% bind_rows(sel_data2)
+```
+
 
 ## Change columns into standar names
 
@@ -106,7 +128,6 @@ sel_data_kp <- sel_data_kp %>%
 
 ```
 
-
 ## Plot trial layout
 
 ```{r, fig.height=12, fig.width=14}
@@ -137,7 +158,7 @@ trial_layout <- function(trial = sel_data_kp) {
 
     print(myplot)
     
-    # ggsave(paste("images\\layout", trial_list[i], Sys.Date(), ".png", sep = "_"),
+    # ggsave(paste("images\\layout", trial_list[6], Sys.Date(), ".png", sep = "_"),
     #    plot = myplot, units = "in", dpi = 300, width = 14, height = 12)
   }
 }
@@ -147,7 +168,6 @@ trial_layout(sel_data_kp)
 
 
 ```
-
 
 ## Check the clone name
 
@@ -173,9 +193,6 @@ trial_standard <- add_GIS(trial_standard)
 ```
 
 ## Location Map
-
-
-
 
 ```{r}
 accession_rep_ct <- trial_standard %>%
@@ -232,7 +249,6 @@ plants_to_harvest <- plants_harvested %>%
 
 ```
 
-
 ## Compute germination, yield, yield_starch
 
 ```{r}
@@ -243,7 +259,8 @@ trial_standard_new <- trial_standard %>%
                      str_detect(use_trial_name, "202176") &  str_detect(use_trial_name , trial_interest) ~ 4,
                      str_detect(use_trial_name, "202177") &  str_detect(use_trial_name , trial_interest) ~ 4,
                      str_detect(use_trial_name, "202256") &  str_detect(use_trial_name , trial_interest) ~ 4,
-                     str_detect(use_trial_name, "202257") &  str_detect(use_trial_name , trial_interest) ~ 4),
+                     str_detect(use_trial_name, "202257") &  str_detect(use_trial_name , trial_interest) ~ 4,
+                     str_detect(use_trial_name, "202271") &  str_detect(use_trial_name , trial_interest) ~ 2),
          obs_germination_perc = obs_germinated_number_plot/obs_planted_number_plot * 100,
          # 2) calculate area per plant
          area_plant = (use_plot_length*use_plot_width)/obs_planted_number_plot,
@@ -252,7 +269,6 @@ trial_standard_new <- trial_standard %>%
          obs_DM_yield_ha = obs_DM_gravity * obs_yield_ha_v2 / 100,
          .after = obs_yield_ha)
 ```
-
 
 ## Plot the yield_v2 vs yiel upload by Lizbeth
 
@@ -272,7 +288,6 @@ detach("package:plotly", unload = TRUE)
 is_numeric(trial_data = trial_standard_new)
 ```
 
-
 ## Get the tidy data
 
 ```{r}
@@ -289,7 +304,6 @@ names(trial_tidy)= gsub("obs_", "", names(trial_tidy))
 trial_tidy = trial_tidy[c(meta_info, trait_list)]
 ```
 
-
 ## Issues related with high values in DM_gravity
 
 ```{r}
@@ -300,8 +314,16 @@ trial_tidy <- trial_tidy %>%
   mutate(DM_gravity = 
            ifelse(plot_name == "202257DVGST_momi_rep2_GM14208A-5_1566", NA, DM_gravity))
 
-```
 
+## Coalesce WAB variables
+
+trial_tidy <- trial_tidy %>% 
+  mutate(WAB_20min_10mon = coalesce(WAB_20min_10mon, WAB_20min_12mon)) %>%
+  mutate(WAB_30min_10mon = coalesce(WAB_30min_10mon, WAB_30min_12mon)) %>% 
+  select(-c(WAB_20min_12mon, WAB_30min_12mon))
+
+
+```
 
 # Boxplots
 
@@ -331,7 +353,6 @@ for (i in 1:length(trait_wanted)) {
 }
 ```
 
-
 ## Grouping boxplot
 
 ```{r}
@@ -353,7 +374,7 @@ plot_bxp <- trial_tidy %>%
   labs(x = NULL, y = NULL, title = "") +
   theme_xiaofei() +
   theme(
-    axis.text.x = element_text(size = 8, vjust = 1),
+    axis.text.x = element_text(size = 8, vjust = 1, angle = 65),
     axis.text.y = element_text(size = 8),
     plot.title = element_text(color = "black"),
     strip.text.x = element_text(
@@ -367,27 +388,6 @@ plot_bxp
 #     plot = plot_bxp, units = "in", dpi = 300, width = 14, height = 10
 #   )
 ```
-
-## save Xiaofei thrips1_5 from 202256_momi
-
-```{r}
-
-# thrips <- read.delim("clipboard", header = T, check.names = F) %>% 
-#   select(plot_name, accession_name, plot_number, contains("thrips"))
-# 
-# thrips <- thrips %>% rename(thrips1_5 = `thrips severity : visual 1-5|CO_334:0002084`)
-# thrips$plot_number <- as.numeric(thrips$plot_number)
-# 
-# trial_tidy$plot_number <- as.numeric(trial_tidy$plot_number)
-# 
-# 
-# trial_tidy <- trial_tidy %>% filter(!trial_name == "202257DVGST_momi") %>% 
-#   bind_rows(trial_tidy %>% filter(trial_name == "202257DVGST_momi") %>% 
-#   select(-c(plot_name, thrips1_5)) %>% 
-#   left_join(thrips %>% select(plot_name, plot_number, thrips1_5), 
-#             by = c("plot_number" = "plot_number"))) 
-```
-
 
 ## Save the tidy data for analysis
 
@@ -441,7 +441,7 @@ sel_file = list_file[str_detect(list_file, "_tidy_data4analysis_") &
                        str_detect(list_file,
                                   paste(year_interest, trial_interest, sep=""))]
 # the data we will use
-sel_file_use = sel_file[2]
+sel_file_use = sel_file[1]
 
 sel_file_use
 trial1_tidy = read.csv(here::here("output", sel_file_use), header=TRUE,
@@ -452,6 +452,7 @@ if(trial_set_number == 1){
   trial_tidy_all = trial1_tidy
 }
 ```
+
 ## Obtain all the trait information using a cloud file (gitHub) -------
 
 ```{r}
@@ -521,8 +522,9 @@ print("the trait ideal is:");
 
 trait_ideal %>% as.data.frame() %>% write.table("clipboard", sep = "\t", col.names = T, row.names = F)
 ```
+
 # Missing data analysis
- 
+
 ```{r}
 missing_data <- trial_tidy_all %>% 
   filter(str_detect(trial_name, "2022"), 
@@ -532,6 +534,7 @@ missing_data <- trial_tidy_all %>%
 
 missing_data %>% select(-c(WAB_20min_12mon, WAB_30min_12mon, betacarotenoid_nirs)) %>% 
    pivot_longer(cols = trait_ideal[-c(1, 2, 4)], names_to = "traits", values_to = "count")
+library(naniar)
 
  gg_miss_var(
   missing_data %>% select(-c(WAB_20min_12mon, WAB_30min_12mon, betacarotenoid_nirs)), 
@@ -551,11 +554,10 @@ correlation <- gg_cor(
 #      plot = correlation, units = "in", dpi = 300, width = 12, height = 8
 #    )
 
-# ggsave(paste("images\\pheno_corr", trial_interest, Sys.Date(), ".png", sep = "_"),
-#      plot = correlation, units = "in", dpi = 300, width = 12, height = 8
-#    )
+ggsave(paste("images\\pheno_corr", trial_interest, Sys.Date(), ".png", sep = "_"),
+     plot = correlation, units = "in", dpi = 300, width = 12, height = 8
+   )
 ```
-
 
 ## Check design experimental
 
@@ -569,7 +571,7 @@ my_dat <- my_dat[!my_dat$trial_name %in% c("202151DVGST_ciat"), ]
 
  
 #cohort <- "first"
-cohort <- "second"
+#cohort <- "second"
 
 if(cohort == "first") { 
 my_dat <- my_dat %>% filter(trial_name %in% c("202177DVGST_momi", "202176DVGST_repe"))
@@ -612,7 +614,6 @@ p1
 master_data[["summ_traits"]] <- summary
 ```
 
-
 ## Single trial analysis
 
 ```{r}
@@ -647,15 +648,40 @@ for (i in 1:length(trials)) {
  master_data[[paste0("BLUP_BLUE_", trials[i])]] <- blue_blup
 }
 
+master_data$BLUP_BLUE_202256DVGST_stom %>% 
+  select(genotype, matches("BLUEs_yield_ha|BLUPs_yield_ha")) %>% 
+  ggplot(aes(x = BLUEs_yield_ha, y = BLUPs_yield_ha)) +
+  geom_point()
+
+mod <- lm(BLUPs_yield_ha ~ BLUEs_yield_ha, data = master_data$BLUP_BLUE_202256DVGST_stom %>% 
+  select(genotype, matches("BLUEs_yield_ha|BLUPs_yield_ha")))
+summary(mod)
 
 ```
 
-# single THRIPS 
+```{r}
+accession_remove <- c("CM4919-1_is_Veronica", "TAI8_is_TAI")
+reps_yield <- my_dat %>% filter(trial_name == "202256DVGST_stom", check_test == "test") %>%  
+                 # !accession_name %in% accession_remove) %>% 
+  select(check_test, accession_name, rep_number, yield_ha) %>%
+  pivot_wider(names_from = rep_number, values_from = yield_ha) %>% 
+  rename(rep_1 = `1`, 
+         rep_2 = `2`)
+
+
+reps_yield %>% ggplot(aes(x = rep_1, y = rep_2)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F)
+
+  
+```
+
+# single THRIPS
 
 ```{r}
 library(SpATS)
 
-my_dat57 <- my_dat %>% filter(trial_name == "202257DVGST_momi") %>% 
+my_dat57 <- my_dat %>% filter(trial_name == "202256DVGST_stom") %>% 
   mutate(R = as.factor(row_number),
          C = as.factor(col_number))
          
@@ -665,7 +691,7 @@ nrows = length(unique(my_dat57$R))
 
 
 mo_spatial <- SpATS(
-    response = "thrips1_5",
+    response = "yield_ha",
     genotype = "accession_name",
     genotype.as.random = TRUE,     #TRUE ---select one 
     fixed = NULL,
@@ -840,7 +866,6 @@ master_data[[paste0("BLUP_BLUE_", var)]] <- blue_blup
 }
 ```
 
-
 ## Palmira trial
 
 ```{r}
@@ -884,6 +909,7 @@ master_data$BLUP_BLUE_root_type1_5 <-
 
 
 # put the palmira data into each BLUP_BLUE_trait
+
 # plant_type
 master_data$BLUP_BLUE_plant_type <- 
   master_data$BLUP_BLUE_plant_type %>% 
@@ -1018,7 +1044,6 @@ BLUEs_BLUPs <- BLUEs_BLUPs %>% left_join(blue_MET_palmira %>%
 master_data[["BLUEs_BLUPs_MET"]] = BLUEs_BLUPs
 
 ```
-
 
 ## Genotypic correlation
 
@@ -1188,5 +1213,3 @@ folder_output <- here::here("output//")
 
 write.xlsx(master_data, file = meta_file_name)
 ```
-
-
