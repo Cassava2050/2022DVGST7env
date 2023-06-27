@@ -441,7 +441,7 @@ sel_file = list_file[str_detect(list_file, "_tidy_data4analysis_") &
                        str_detect(list_file,
                                   paste(year_interest, trial_interest, sep=""))]
 # the data we will use
-sel_file_use = sel_file[1]
+sel_file_use = sel_file[2]
 
 sel_file_use
 trial1_tidy = read.csv(here::here("output", sel_file_use), header=TRUE,
@@ -498,6 +498,52 @@ print(analysis_trait)
 meta_col <- names(trial_tidy_all)[names(trial_tidy_all) %in% meta_all_adj]
 print("All the meta information:")
 print(meta_col)
+```
+
+```{r}
+
+# group1 <- trial_tidy_all %>% filter(trial_name %in% c("202177DVGST_momi", "202176DVGST_repe")) %>% 
+#   distinct(accession_name) %>% pull() 
+# 
+# group2 <- trial_tidy_all %>% filter(trial_name %in% c("202257DVGST_momi", "202256DVGST_stom")) %>% 
+#   distinct(accession_name) %>% pull() 
+# 
+# shared_genos <- union(group1, group2) %>% unique()
+
+```
+
+```{r}
+group = "group1" #----- Choose one
+
+# group = "group2"
+```
+
+
+
+# First group
+
+First group is compound by "202271DVGST_ciat", "202151DVGST_ciat", "202177DVGST_momi", "202176DVGST_repe"
+
+
+```{r}
+if (group == "group1") {
+  trial_tidy_all <- trial_tidy_all %>% filter(trial_name %in% c("202271DVGST_ciat", "202151DVGST_ciat", "202177DVGST_momi", "202176DVGST_repe"))
+  print("We are working on group 1")
+} else {
+  print("We are working on group 2")
+}
+```
+
+# Second group
+
+Second group is compound by 202217DVPRG_momi, 202218DVPRG_repe, 2022DV52PRG_stom
+
+```{r}
+if(group == "group2"){ 
+trial_tidy_all <- trial_tidy_all %>% filter(trial_name %in% c("202257DVGST_momi", "202256DVGST_stom"))
+}else {
+  print('We are working on group 1')
+}
 ```
 
 ## Check the SD of each trait
@@ -567,17 +613,54 @@ ggsave(paste("images\\pheno_corr", trial_interest, Sys.Date(), ".png", sep = "_"
 my_dat <- trial_rm_sd %>% 
   add_column(block = NA) %>% mutate(block = as.factor(block))
 
-my_dat <- my_dat[!my_dat$trial_name %in% c("202151DVGST_ciat"), ]
+my_dat <- my_dat[!my_dat$trial_name %in% c("202151DVGST_ciat", "202271DVGST_ciat"), ]
 
- 
+```
+
+```{r}
+if(group == "group1") { 
+shared_genos_2021 <- check_connectivity(
+    data = my_dat,
+    genotype = "accession_name",
+    trial = "trial_name",
+    response = "height",
+    all = TRUE,
+    return_matrix = FALSE
+  )
+shared_genos_2021 <- shared_genos_2021 %>% select(accession_name, starts_with("2021")) %>% 
+  drop_na() %>% pull(accession_name)
+
+} else {
+  
+  shared_genos_2022 <- check_connectivity(
+    data = my_dat,
+    genotype = "accession_name",
+    trial = "trial_name",
+    response = "height",
+    all = TRUE,
+    return_matrix = FALSE
+  )
+shared_genos_2022 <- shared_genos_2022 %>% select(accession_name, starts_with("2022")) %>% 
+  drop_na() %>% pull(accession_name)
+}
+
+# genotypes from 2021 and 2022 of both groups = 242 genotypes
+shared_genos <- union(shared_genos_2021, shared_genos_2022)
+```
+
+
+
+
+
+```{r} 
 #cohort <- "first"
 #cohort <- "second"
 
-if(cohort == "first") { 
-my_dat <- my_dat %>% filter(trial_name %in% c("202177DVGST_momi", "202176DVGST_repe"))
-}else{
-my_dat <- my_dat %>% filter(trial_name %in% c("202256DVGST_stom", "202257DVGST_momi"))
-}
+# if(cohort == "first") { 
+# my_dat <- my_dat %>% filter(trial_name %in% c("202177DVGST_momi", "202176DVGST_repe"))
+# }else{
+# my_dat <- my_dat %>% filter(trial_name %in% c("202256DVGST_stom", "202257DVGST_momi"))
+# }
 
 my_dat$trial_name %>% unique()
 
@@ -594,8 +677,8 @@ results <- check_design_met(
 
 shared <- plot(results, type = "connectivity")
 
-# ggsave(paste('images\\shared_', trial_interest, Sys.Date(), ".png", sep = "_"),
-#        plot = shared, units = "in", dpi = 300, width = 8, height = 6)
+ggsave(paste('images\\shared_', trial_interest, Sys.Date(), ".png", sep = "_"),
+       plot = shared, units = "in", dpi = 300, width = 8, height = 6)
 
 summary <- results$summ_traits 
 
@@ -608,9 +691,9 @@ p1 <- summary %>%
   theme(axis.text.x = element_text(hjust = 1 , angle = 75, size = 16),
         axis.text.y = element_text(size = 16))
 p1
-# ggsave(paste("images\\missing_", trial_interest, Sys.Date(), ".png", sep = "_"),
-#      plot = p1, units = "in", dpi = 300, width = 15, height = 6
-#    )
+ggsave(paste("images\\missing_", trial_interest, Sys.Date(), ".png", sep = "_"),
+     plot = p1, units = "in", dpi = 300, width = 15, height = 6
+   )
 master_data[["summ_traits"]] <- summary
 ```
 
@@ -656,6 +739,8 @@ master_data$BLUP_BLUE_202256DVGST_stom %>%
 mod <- lm(BLUPs_yield_ha ~ BLUEs_yield_ha, data = master_data$BLUP_BLUE_202256DVGST_stom %>% 
   select(genotype, matches("BLUEs_yield_ha|BLUPs_yield_ha")))
 summary(mod)
+
+save.image("space_blue_blup")
 
 ```
 
