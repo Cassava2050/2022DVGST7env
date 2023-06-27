@@ -617,6 +617,8 @@ my_dat <- my_dat[!my_dat$trial_name %in% c("202151DVGST_ciat", "202271DVGST_ciat
 
 ```
 
+
+
 ```{r}
 if(group == "group1") { 
 shared_genos_2021 <- check_connectivity(
