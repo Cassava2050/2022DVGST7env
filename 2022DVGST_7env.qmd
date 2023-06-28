@@ -725,7 +725,6 @@ for (i in 1:length(trials)) {
 }
 
 plot(obj, type = "spatial")
-
 ```
 
 ## 202151DVGST_ciat Palmira trial
@@ -797,6 +796,11 @@ colnames(one_rep_palmira_71) <-
 
 master_data$BLUE_202171DVGST_ciat <- 
   one_rep_palmira_71 %>%  mutate(across(where(is.numeric), round, 2))
+
+# fix name of 202271
+
+grep("^BLUE_202171DVGST_ciat", names(master_data))
+names(master_data)[8] <- "BLUE_202271DVGST_ciat"
 ```
 
 
@@ -937,7 +941,6 @@ ggsave(paste0("images\\height_1st_branch_vcor", trial_interest, Sys.Date(), ".pn
 
 ```{r}
 as.data.frame(do.call(rbind, met_results$VCOV))$CORR
-
 ```
 
 
@@ -946,6 +949,10 @@ as.data.frame(do.call(rbind, met_results$VCOV))$CORR
 ```{r}
 variables <- colnames(BLUPs_table)[!grepl("accession_name", colnames(BLUPs_table))]
 for (var in variables) {
+  
+  cat("\n_______________")
+  cat("\nTRAIT:", var, "\n")
+  cat("_______________\n")
   
   blue_blup <-
   obj$blues_blups %>%
@@ -1017,8 +1024,7 @@ for (var in variables) {
 stab <- met_results$stability %>% 
   filter(trait == var) %>% 
   arrange(superiority) %>% 
-        pivot_wider(names_from = "trait", values_from = c('predicted.value')) %>% 
-  filter(genotype %in% shared_genos)
+        pivot_wider(names_from = "trait", values_from = c('predicted.value')) 
 
 # Change colname
 colnames(stab)[5] <- paste('BLUPs', colnames(stab)[5], sep = '_') 
@@ -1036,6 +1042,10 @@ stab_values <- master_data[ind] %>%
   reduce(inner_join, by = "genotype") %>% 
   select(!starts_with("BLUPs_")) %>% 
   mutate(across(where(is.numeric), round, 2))
+
+# remove multiple stability sheets
+
+master_data[ind] <- NULL
 ```
 
 ## BLUE and BLUP data together
@@ -1080,6 +1090,18 @@ if(cohort == "first") {
   
 BLUEs_BLUPs <- 
   BLUEs_BLUPs %>% left_join(blue_MET_palmira, by = c("genotype" = "accession_name"))
+
+
+blue_MET_palmira_71 <- master_data$BLUE_202271DVGST_ciat
+    
+  
+  colnames(blue_MET_palmira_71)[-1] <-
+    c(paste(colnames(blue_MET_palmira_71)[-1], "202271DVGST_ciat", sep = "_")) 
+  
+  #BLUEs_branch_angle_202176DVGST_repe
+  
+BLUEs_BLUPs <- 
+  BLUEs_BLUPs %>% left_join(blue_MET_palmira_71, by = c("genotype" = "accession_name"))
 }
 
 # put all together stab_values with blues_blups
@@ -1099,18 +1121,16 @@ for (i in 1:length(variables)) {
 
 BLUEs_BLUPs <- BLUEs_BLUPs %>%
   select(genotype, all_of(header_sort), -starts_with("se")) 
+
 BLUEs_BLUPs <- BLUEs_BLUPs %>% 
   relocate(colnames(BLUEs_BLUPs)[str_detect(colnames(BLUEs_BLUPs), "DM_gravity")], .after = genotype)
 
 if(cohort == "first") {
-BLUEs_BLUPs <- BLUEs_BLUPs %>% left_join(blue_MET_palmira %>% 
-                            select(accession_name, BLUEs_DM_nirs_202151DVGST_ciat),
-                          by = c("genotype" = "accession_name")) %>% 
-  relocate(BLUEs_DM_nirs_202151DVGST_ciat, .after = genotype)
+# BLUEs_BLUPs <- BLUEs_BLUPs %>% left_join(blue_MET_palmira %>% 
+#                             select(accession_name, BLUEs_DM_nirs_202151DVGST_ciat),
+#                           by = c("genotype" = "accession_name")) %>% 
+#   relocate(BLUEs_DM_nirs_202151DVGST_ciat, .after = genotype)
 }
-
-
-
 
 master_data[["BLUEs_BLUPs_MET"]] = BLUEs_BLUPs
 
@@ -1129,32 +1149,27 @@ geno_cor <- gg_cor(
   axis.text.y = element_text(size = 14),
   axis.text.x = element_text(size = 14))
 
-
-ggsave(paste("images\\geno_corr", trial_interest, Sys.Date(), ".png", sep = "_"),
-       plot = geno_cor, units = "in", dpi = 300, width = 14, height = 8)
+# 
+# ggsave(paste("images\\geno_corr", trial_interest, Sys.Date(), ".png", sep = "_"),
+#        plot = geno_cor, units = "in", dpi = 300, width = 14, height = 8)
 ```
 
 ## Save the master data results
 
 ```{r}
 folder_output <- here::here("output//")
-meta_file_name <- paste0(folder_output, paste("2022", trial_interest, cohort, "cohort", "master_results", Sys.Date(), ".xlsx", sep = "_"))
+meta_file_name <- paste0(folder_output, paste("2022", trial_interest, "master_results", Sys.Date(), ".xlsx", sep = "_"))
 
 write.xlsx(master_data, file = meta_file_name)
 
 # It is neccessary change some elements names from master_file
 grep("^BLUP_BLUE_germinated_number_plot", names(master_data))
-names(master_data)[8] <- "BLUP_BLUE_germ_number_plot"
-
-grep("^stability_germinated_number_plot", names(master_data))
-names(master_data)[26] <- "stability_germ_number_plot"
-
-names(master_data)[19] <- "BLUP_BLUE_root_commercial"
-names(master_data)[27] <- "stability_germ_number_plot"
-names(master_data)[41] <- "stability_root_commercial"
-
+names(master_data)[18] <- "BLUP_BLUE_germ_number_plot"
 write.xlsx(master_data, file = meta_file_name)
 
+grep("^BLUP_BLUE_root_number_commercial", names(master_data))
+names(master_data)[27] <- "BLUP_BLUE_root_commercial"
+write.xlsx(master_data, file = meta_file_name)
 ```
 
 ## Index selection
@@ -1162,14 +1177,13 @@ write.xlsx(master_data, file = meta_file_name)
 ```{r}
 list_file <- list.files(folder_output)
 sel_file <- list_file[str_detect(list_file, "_master_results_") &
-  str_detect(list_file, trial_interest) &
-  str_detect(list_file, cohort)]
+  str_detect(list_file, trial_interest)]
 sel_file
 
-sel_file[2]
+sel_file[3]
 blupDF_kp <- read_excel(
   paste(folder_output,
-    sel_file[2],
+    sel_file[3],
     sep = ""
   ),
   sheet = paste0("BLUPs_", "gxe")
@@ -1259,9 +1273,10 @@ res.pca_final
 # ggsave(paste("images/selection",  trial_interest, Sys.Date(), ".png"), plot = res.pca_final, units = "in", dpi = 300, width = 10, height = 10)
 res.pca$selection
 selections <- res.pca$results %>% rownames_to_column(var = "accession_name") 
-selections %>% 
-  select(accession_name, index, everything()) %>% 
-  write.table("clipboard", sep = "\t", col.names = T, row.names = F)
+
+# selections %>% 
+#   select(accession_name, index, everything()) %>% 
+#   write.table("clipboard", sep = "\t", col.names = T, row.names = F)
 ```
 
 ## Add index column to BLUEs_BLUPs_MET
