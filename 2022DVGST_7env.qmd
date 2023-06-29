@@ -58,13 +58,13 @@ local_file <- "yes" # "no"
 
 if (local_file == "yes") {
   folder <- here::here("data//") 
-  file <- "phenotype3.csv"
+  file <- "phenotype58.csv"
   skip_col <- 3 # double check the number of col skipped
   trial_interest = "DVGST"
   year_interest <- 2022
 }
 # 1) load the data
-sel_data1 <- read_cassavabase(phenotypeFile = paste0(folder, file))
+sel_data <- read_cassavabase(phenotypeFile = paste0(folder, file))
 ```
 
 ## Load the files to check
@@ -158,8 +158,8 @@ trial_layout <- function(trial = sel_data_kp) {
 
     print(myplot)
     
-    # ggsave(paste("images\\layout", trial_list[6], Sys.Date(), ".png", sep = "_"),
-    #    plot = myplot, units = "in", dpi = 300, width = 14, height = 12)
+    ggsave(paste("images\\layout", trial_list[i], Sys.Date(), ".png", sep = "_"),
+       plot = myplot, units = "in", dpi = 300, width = 14, height = 12)
   }
 }
 trial_layout(sel_data_kp)
@@ -452,6 +452,19 @@ if(trial_set_number == 1){
   trial_tidy_all = trial1_tidy
 }
 
+sel_file_use = sel_file[3]
+
+sel_file_use
+trial2_tidy = read.csv(here::here("output", sel_file_use), header=TRUE,
+                        stringsAsFactors = FALSE,
+                        as.is=T,
+                        check.names = FALSE)
+if(trial_set_number == 1){
+  trial_tidy_all = trial2_tidy
+}
+
+trial_tidy_all <- trial1_tidy %>% bind_rows(trial2_tidy)
+
 ```
 
 ## Obtain all the trait information using a cloud file (gitHub) -------
@@ -603,7 +616,7 @@ ggsave(paste("images\\pheno_corr", trial_interest, Sys.Date(), ".png", sep = "_"
 my_dat <- trial_rm_sd %>% 
   add_column(block = NA) %>% mutate(block = as.factor(block))
 
-my_dat <- my_dat[!my_dat$trial_name %in% c("202151DVGST_ciat", "202271DVGST_ciat"), ]
+my_dat <- my_dat[!my_dat$trial_name %in% c("202151DVGST_ciat", "202271DVGST_ciat", "202258DVGST_ciat"), ]
 
 ```
 
@@ -724,6 +737,7 @@ for (i in 1:length(trials)) {
  master_data[[paste0("BLUP_BLUE_", trials[i])]] <- blue_blup
 }
 
+
 plot(obj, type = "spatial")
 ```
 
@@ -751,6 +765,8 @@ palmira_51_checks_summary <- PALMIRA_51 %>% filter(accession_name %in% testigos_
 one_rep_palmira_51 <- PALMIRA_51 %>% filter(!accession_name %in% testigos_palmira_51) %>% 
   bind_rows(palmira_51_checks_summary)
 
+var_ciat_51 <- colnames(one_rep_palmira_51)[-1] 
+
 # paste BLUEs_ word to each trait of one_rep_palmira
 
 colnames(one_rep_palmira_51) <- 
@@ -761,6 +777,43 @@ colnames(one_rep_palmira_51) <-
 master_data$BLUE_202151DVGST_ciat <- 
   one_rep_palmira_51 %>%  mutate(across(where(is.numeric), round, 2))
 
+```
+
+## 202258DVGST_ciat Palmira trial
+
+```{r}
+
+PALMIRA_58 <- trial_rm_sd %>% filter(trial_name %in% c("202258DVGST_ciat")) %>% 
+  select(accession_name, any_of(trait_ideal))
+
+# remove empty cols
+PALMIRA_58 <- PALMIRA_58[, colSums(is.na(PALMIRA_58)) < nrow(PALMIRA_58)]
+
+# extract reps in palmira
+testigos_palmira_58 <- PALMIRA_58 %>% count(accession_name) %>% filter(n > 1) %>% pull(accession_name)
+
+# calculate mean of checks in Palmira
+
+palmira_58_checks_summary <- PALMIRA_58 %>% filter(accession_name %in% testigos_palmira_58) %>% 
+  group_by(accession_name) %>% 
+  summarise(across(where(is.numeric), mean))
+
+# remeve checks from original data and bind their mean values
+
+one_rep_palmira_58 <- PALMIRA_58 %>% filter(!accession_name %in% testigos_palmira_58) %>% 
+  bind_rows(palmira_58_checks_summary)
+
+var_ciat_58 <- colnames(one_rep_palmira_58)[-1] 
+
+# paste BLUEs_ word to each trait of one_rep_palmira
+
+colnames(one_rep_palmira_58) <- 
+  c("accession_name", paste("BLUEs", colnames(one_rep_palmira_58[-1]), sep = "_"))
+
+# add palmira BLUEs_value to master file
+
+master_data$BLUE_202258DVGST_ciat <- 
+  one_rep_palmira_58 %>%  mutate(across(where(is.numeric), round, 2))
 ```
 
 ## 202271DVGST_ciat Palmira trial
@@ -787,6 +840,8 @@ palmira_71_checks_summary <- PALMIRA_71 %>% filter(accession_name %in% testigos_
 one_rep_palmira_71 <- PALMIRA_71 %>% filter(!accession_name %in% testigos_palmira_71) %>% 
   bind_rows(palmira_71_checks_summary)
 
+var_ciat_71 <- colnames(one_rep_palmira_71)[-1] 
+
 # paste BLUEs_ word to each trait of one_rep_palmira
 
 colnames(one_rep_palmira_71) <- 
@@ -794,13 +849,8 @@ colnames(one_rep_palmira_71) <-
 
 # add palmira BLUEs_value to master file
 
-master_data$BLUE_202171DVGST_ciat <- 
+master_data$BLUE_202271DVGST_ciat <- 
   one_rep_palmira_71 %>%  mutate(across(where(is.numeric), round, 2))
-
-# fix name of 202271
-
-grep("^BLUE_202171DVGST_ciat", names(master_data))
-names(master_data)[8] <- "BLUE_202271DVGST_ciat"
 ```
 
 
@@ -972,49 +1022,6 @@ master_data[[paste0("BLUP_BLUE_", var)]] <- blue_blup
 }
 ```
 
-## Palmira trials GxE
-
-```{r}
-# put the Palmira data into each BLUP_BLUE_trait sheet 
-# root_type
-master_data$BLUP_BLUE_root_type1_5 <- 
-  master_data$BLUP_BLUE_root_type1_5 %>% 
-  left_join(master_data$BLUE_202151DVGST_ciat %>% 
-              select(accession_name, BLUEs_root_type1_5) %>% 
-              rename(`202151DVGST_ciat` = BLUEs_root_type1_5), by = c("genotype" = "accession_name")) %>% 
-  select(-c(root_type1_5), everything(), root_type1_5)
-
-
-# put the palmira data into each BLUP_BLUE_trait
-
-# plant_type
-master_data$BLUP_BLUE_plant_type <- 
-  master_data$BLUP_BLUE_plant_type %>% 
-  left_join(master_data$BLUE_202151DVGST_ciat %>% 
-              select(accession_name, BLUEs_plant_type) %>% 
-              rename(`202151DVGST_ciat` = BLUEs_plant_type), by = c("genotype" = "accession_name")) %>% 
-  select(-c(plant_type), everything(), plant_type)
-
-# height_1st_branch
-
-master_data$BLUP_BLUE_height_1st_branch <- 
-  master_data$BLUP_BLUE_height_1st_branch %>% 
-  left_join(master_data$BLUE_202151DVGST_ciat %>% 
-              select(accession_name, BLUEs_height_1st_branch) %>% 
-              rename(`202151DVGST_ciat` = BLUEs_height_1st_branch), by = c("genotype" = "accession_name")) %>% 
-  select(-c(height_1st_branch), everything(), height_1st_branch)
-
-# DM_nirs
-
-master_data$BLUP_BLUE_DM_gravity <- 
-  master_data$BLUP_BLUE_DM_gravity %>% 
-  left_join(master_data$BLUE_202151DVGST_ciat %>% 
-              select(accession_name, BLUEs_DM_nirs) %>% 
-              rename(`202151DVGST_ciat` = BLUEs_DM_nirs), by = c("genotype" = "accession_name")) %>% 
-  select(-c(DM_gravity), everything(), DM_gravity)
-
-```
-
 ## Stability analysis
 
 ```{r}
@@ -1077,32 +1084,42 @@ BLUEs_BLUPs <-
   BLUEs_BLUPs <- BLUEs_BLUPs[, colSums(is.na(BLUEs_BLUPs)) < nrow(BLUEs_BLUPs)]
 
 
-if(cohort == "first") { 
-# put BLUES from PALMIRA data set together with the rest.
-  
+
+# put BLUES from 202151DVGST_ciat data set together with the rest.
   blue_MET_palmira <- master_data$BLUE_202151DVGST_ciat
     
   
   colnames(blue_MET_palmira)[-1] <-
     c(paste(colnames(blue_MET_palmira)[-1], "202151DVGST_ciat", sep = "_")) 
   
-  #BLUEs_branch_angle_202176DVGST_repe
-  
+
 BLUEs_BLUPs <- 
   BLUEs_BLUPs %>% left_join(blue_MET_palmira, by = c("genotype" = "accession_name"))
 
-
+# put BLUES from 202271DVGST_ciat data set together with the rest.
 blue_MET_palmira_71 <- master_data$BLUE_202271DVGST_ciat
     
   
   colnames(blue_MET_palmira_71)[-1] <-
     c(paste(colnames(blue_MET_palmira_71)[-1], "202271DVGST_ciat", sep = "_")) 
   
+
+BLUEs_BLUPs <- 
+  BLUEs_BLUPs %>% left_join(blue_MET_palmira_71, by = c("genotype" = "accession_name"))
+
+
+# put BLUES from 202258DVGST_ciat data set together with the rest.
+blue_MET_palmira_58 <- master_data$BLUE_202258DVGST_ciat
+    
+  
+  colnames(blue_MET_palmira_58)[-1] <-
+    c(paste(colnames(blue_MET_palmira_58)[-1], "202258DVGST_ciat", sep = "_")) 
+  
   #BLUEs_branch_angle_202176DVGST_repe
   
 BLUEs_BLUPs <- 
-  BLUEs_BLUPs %>% left_join(blue_MET_palmira_71, by = c("genotype" = "accession_name"))
-}
+  BLUEs_BLUPs %>% left_join(blue_MET_palmira_58, by = c("genotype" = "accession_name"))
+
 
 # put all together stab_values with blues_blups
 BLUEs_BLUPs <- 
@@ -1110,6 +1127,12 @@ BLUEs_BLUPs <-
   
     
 header_sort = vector()
+
+# put gxe var toguether single var
+
+variables <- unique(c(variables, var_ciat_51, var_ciat_58, var_ciat_71))
+
+# order header BLUEs_BLUPs table
 for (i in 1:length(variables)) {
   
   header_sort = c(header_sort, 
@@ -1123,17 +1146,13 @@ BLUEs_BLUPs <- BLUEs_BLUPs %>%
   select(genotype, all_of(header_sort), -starts_with("se")) 
 
 BLUEs_BLUPs <- BLUEs_BLUPs %>% 
+  select(genotype, contains(c("DM_gravity", "DM_nirs", "WAB")), everything())
+
+
+BLUEs_BLUPs <- BLUEs_BLUPs %>% 
   relocate(colnames(BLUEs_BLUPs)[str_detect(colnames(BLUEs_BLUPs), "DM_gravity")], .after = genotype)
 
-if(cohort == "first") {
-# BLUEs_BLUPs <- BLUEs_BLUPs %>% left_join(blue_MET_palmira %>% 
-#                             select(accession_name, BLUEs_DM_nirs_202151DVGST_ciat),
-#                           by = c("genotype" = "accession_name")) %>% 
-#   relocate(BLUEs_DM_nirs_202151DVGST_ciat, .after = genotype)
-}
-
 master_data[["BLUEs_BLUPs_MET"]] = BLUEs_BLUPs
-
 ```
 
 ## Genotypic correlation
@@ -1164,11 +1183,11 @@ write.xlsx(master_data, file = meta_file_name)
 
 # It is neccessary change some elements names from master_file
 grep("^BLUP_BLUE_germinated_number_plot", names(master_data))
-names(master_data)[18] <- "BLUP_BLUE_germ_number_plot"
+names(master_data)[19] <- "BLUP_BLUE_germ_number_plot"
 write.xlsx(master_data, file = meta_file_name)
 
 grep("^BLUP_BLUE_root_number_commercial", names(master_data))
-names(master_data)[27] <- "BLUP_BLUE_root_commercial"
+names(master_data)[28] <- "BLUP_BLUE_root_commercial"
 write.xlsx(master_data, file = meta_file_name)
 ```
 
@@ -1180,10 +1199,10 @@ sel_file <- list_file[str_detect(list_file, "_master_results_") &
   str_detect(list_file, trial_interest)]
 sel_file
 
-sel_file[3]
+sel_file[4]
 blupDF_kp <- read_excel(
   paste(folder_output,
-    sel_file[3],
+    sel_file[4],
     sep = ""
   ),
   sheet = paste0("BLUPs_", "gxe")
